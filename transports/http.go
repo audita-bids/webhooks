@@ -40,6 +40,10 @@ func decodeMercadoPagoWebhookHTTP(ctx context.Context, r *http.Request) (interfa
 	hdr := r.Header
 
 	webhook.DataId = qr.Get("data.id")
+	if webhook.DataId == "" {
+		webhook.DataId = webhook.BodyDataId()
+	}
+
 	webhook.Signature = hdr.Get("x-signature")
 	webhook.RequestId = hdr.Get("x-request-id")
 

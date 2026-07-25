@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const Provider = "mercadopago"
+
 const (
 	TopicPayment                       = "payment"
 	TopicSubscriptionPreapproval       = "subscription_preapproval"
@@ -18,52 +20,68 @@ const (
 const (
 	ActionPaymentCreated = "payment.created"
 	ActionPaymentUpdated = "payment.updated"
+	ActionCreated        = "created"
+	ActionUpdated        = "updated"
 )
 
 type WebhookMessage struct {
 	Signature string          `json:"signature"`
 	RequestId string          `json:"request_id"`
 	Type      string          `json:"type"`
+	Action    string          `json:"action"`
 	DataId    string          `json:"data_id"`
 	Data      json.RawMessage `json:"data"`
 }
 
-func (m WebhookMessage) Notification() (*Notification, error) {
-	var n Notification
-
-	if err := json.Unmarshal(m.Data, &n); err != nil {
-		return nil, err
+func (m *WebhookMessage) BodyDataId() string {
+	var d struct {
+		ID FlexString `json:"id"`
 	}
 
-	return &n, nil
-}
-
-type Notification struct {
-	ID          FlexString      `json:"id"`
-	LiveMode    bool            `json:"live_mode"`
-	Type        string          `json:"type"`
-	Action      string          `json:"action"`
-	DateCreated time.Time       `json:"date_created"`
-	UserID      FlexString      `json:"user_id"`
-	APIVersion  string          `json:"api_version"`
-	Data        json.RawMessage `json:"data"`
-}
-
-type PaymentData struct {
-	ID string `json:"id"`
-}
-
-func (n Notification) PaymentData() (*PaymentData, error) {
-	var d PaymentData
-	if err := json.Unmarshal(n.Data, &d); err != nil {
-		return nil, err
+	if err := json.Unmarshal(m.Data, &d); err != nil {
+		return ""
 	}
 
-	return &d, nil
+	return string(d.ID)
 }
 
-func (d PaymentData) PaymentID() (int, error) {
-	return strconv.Atoi(d.ID)
+func (m *WebhookMessage) Event(status, reference string, resource interface{}) *Event {
+	raw, _ := json.Marshal(resource)
+
+	return &Event{
+		Provider:   Provider,
+		Type:       m.Type,
+		Action:     m.Action,
+		ResourceId: m.DataId,
+		Reference:  reference,
+		Status:     status,
+		ReceivedAt: time.Now().UTC().Add(-3 * time.Hour),
+		Resource:   raw,
+	}
+}
+
+type Event struct {
+	Provider   string          `json:"provider"`
+	Type       string          `json:"type"`
+	Action     string          `json:"action"`
+	ResourceId string          `json:"resource_id"`
+	Reference  string          `json:"external_reference"`
+	Status     string          `json:"status"`
+	ReceivedAt time.Time       `json:"received_at"`
+	Resource   json.RawMessage `json:"resource"`
+}
+
+func (e *Event) Key() string {
+	if e.Reference != "" {
+		return e.Reference
+	}
+
+	return e.Provider + "_" + e.ResourceId
+}
+
+func (e *Event) Marshal() []byte {
+	b, _ := json.Marshal(e)
+	return b
 }
 
 type FlexString string

@@ -34,12 +34,12 @@ func MakeHandleMercadoPagoWebhookEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(*mercadopago.WebhookMessage)
 
-		c, err := s.HandleMercadoPagoWebhook(ctx, req)
+		resp, err := s.HandleMercadoPagoWebhook(ctx, req)
 		if err != nil {
 			return nil, err
 		}
 
-		return c, nil
+		return resp, nil
 	}
 }
 

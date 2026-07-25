@@ -3,6 +3,7 @@ package mercadopago
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"github.com/go-kit/log"
 	"resty.dev/v3"
 )
+
+var ErrMissingDataId = errors.New("mercadopago: notification without data.id")
 
 const (
 	MpBaseUrl = "https://api.mercadopago.com"
@@ -24,7 +27,7 @@ const (
 )
 
 type Service interface {
-	HandleWebhook(ctx context.Context, webhook *WebhookMessage) (interface{}, error)
+	HandleWebhook(ctx context.Context, webhook *WebhookMessage) (*Event, error)
 
 	GetPayment(ctx context.Context, id string) (*Payment, error)
 	GetPreapproval(ctx context.Context, id string) (*Preapproval, error)
@@ -69,26 +72,55 @@ func (s *service) Close() error {
 	return s.mpApi.Close()
 }
 
-func (s *service) HandleWebhook(ctx context.Context, webhook *WebhookMessage) (interface{}, error) {
+func (s *service) HandleWebhook(ctx context.Context, webhook *WebhookMessage) (*Event, error) {
 	level.Info(s.logger).Log(
-		"provider", "mercadopago",
+		"provider", Provider,
 		"during", "handle_webhook",
 		"type", webhook.Type,
+		"action", webhook.Action,
 		"data_id", webhook.DataId,
 	)
 
+	if webhook.DataId == "" {
+		return nil, ErrMissingDataId
+	}
+
 	switch webhook.Type {
 	case TopicPayment:
-		return s.GetPayment(ctx, webhook.DataId)
+		p, err := s.GetPayment(ctx, webhook.DataId)
+		if err != nil {
+			return nil, err
+		}
+
+		return webhook.Event(p.Status, p.ExternalReference, p), nil
+
 	case TopicSubscriptionPreapproval:
-		return s.GetPreapproval(ctx, webhook.DataId)
+		p, err := s.GetPreapproval(ctx, webhook.DataId)
+		if err != nil {
+			return nil, err
+		}
+
+		return webhook.Event(p.Status, p.ExternalReference, p), nil
+
 	case TopicSubscriptionAuthorizedPayment:
-		return s.GetAuthorizedPayment(ctx, webhook.DataId)
+		p, err := s.GetAuthorizedPayment(ctx, webhook.DataId)
+		if err != nil {
+			return nil, err
+		}
+
+		return webhook.Event(p.Status, p.ExternalReference, p), nil
+
 	case TopicChargeback:
-		return s.GetChargeback(ctx, webhook.DataId)
+		c, err := s.GetChargeback(ctx, webhook.DataId)
+		if err != nil {
+			return nil, err
+		}
+
+		return webhook.Event("", "", c), nil
+
 	default:
 		level.Info(s.logger).Log(
-			"provider", "mercadopago",
+			"provider", Provider,
 			"during", "handle_webhook",
 			"msg", "unhandled topic",
 			"topic", webhook.Type,
