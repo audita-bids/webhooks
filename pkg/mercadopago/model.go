@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/newdesksoftwares/private-kit/pkg/pb/protocols/webhooks"
 )
 
 const Provider = "mercadopago"
@@ -25,12 +27,14 @@ const (
 )
 
 type WebhookMessage struct {
-	Signature string          `json:"signature"`
-	RequestId string          `json:"request_id"`
-	Type      string          `json:"type"`
-	Action    string          `json:"action"`
-	DataId    string          `json:"data_id"`
-	Data      json.RawMessage `json:"data"`
+	Signature      string          `json:"signature"`
+	RequestId      string          `json:"request_id"`
+	NotificationId FlexString      `json:"id"`
+	Type           string          `json:"type"`
+	Action         string          `json:"action"`
+	LiveMode       bool            `json:"live_mode"`
+	DataId         string          `json:"data_id"`
+	Data           json.RawMessage `json:"data"`
 }
 
 func (m *WebhookMessage) BodyDataId() string {
@@ -45,30 +49,22 @@ func (m *WebhookMessage) BodyDataId() string {
 	return string(d.ID)
 }
 
+type Event webhooks.WebhooksComplete
+
 func (m *WebhookMessage) Event(status, reference string, resource interface{}) *Event {
 	raw, _ := json.Marshal(resource)
 
 	return &Event{
+		Id:         m.RequestId,
 		Provider:   Provider,
 		Type:       m.Type,
 		Action:     m.Action,
 		ResourceId: m.DataId,
 		Reference:  reference,
 		Status:     status,
-		ReceivedAt: time.Now().UTC().Add(-3 * time.Hour),
-		Resource:   raw,
+		ReceivedAt: time.Now().Format(time.RFC3339),
+		Resource:   string(raw),
 	}
-}
-
-type Event struct {
-	Provider   string          `json:"provider"`
-	Type       string          `json:"type"`
-	Action     string          `json:"action"`
-	ResourceId string          `json:"resource_id"`
-	Reference  string          `json:"external_reference"`
-	Status     string          `json:"status"`
-	ReceivedAt time.Time       `json:"received_at"`
-	Resource   json.RawMessage `json:"resource"`
 }
 
 func (e *Event) Key() string {

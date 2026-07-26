@@ -19,11 +19,11 @@ var (
 )
 
 const (
-	TopicPaymentCreated             = "PAYMENT_CREATED"
-	TopicPaymentUpdated             = "PAYMENT_UPDATED"
-	TopicSubscriptionUpdated        = "SUBSCRIPTION_UPDATED"
-	TopicSubscriptionPaymentUpdated = "SUBSCRIPTION_PAYMENT_UPDATED"
-	TopicChargebackCreated          = "CHARGEBACK_CREATED"
+	TopicPaymentCreated             = "AUDITA_PAYMENT_CREATED"
+	TopicPaymentUpdated             = "AUDITA_PAYMENT_UPDATED"
+	TopicSubscriptionUpdated        = "AUDITA_SUBSCRIPTION_UPDATED"
+	TopicSubscriptionPaymentUpdated = "AUDITA_SUBSCRIPTION_PAYMENT_UPDATED"
+	TopicChargebackCreated          = "AUDITA_CHARGEBACK_CREATED"
 )
 
 type service struct {
