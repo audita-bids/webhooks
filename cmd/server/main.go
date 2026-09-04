@@ -50,6 +50,11 @@ func main() {
 	var g run.Group
 	{
 		promListener, err := net.Listen("tcp", cfg.PromAddr)
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to listen on prometheus address", "err", err)
+			os.Exit(1)
+		}
+
 		config := middlewares.MetricsConfig{
 			Logger:         logger,
 			EnableEndpoint: true,
@@ -68,10 +73,12 @@ func main() {
 
 			return srv.Serve(promListener)
 		}, func(error) {
-			level.Error(logger).Log(
-				"msg", "failed to listen prometheus address",
-				"err", err,
-			)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+
+			if err := srv.Shutdown(ctx); err != nil {
+				level.Error(logger).Log("msg", "failed to shutdown prometheus server", "err", err)
+			}
 		})
 	}
 	{
