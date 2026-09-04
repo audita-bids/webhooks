@@ -3,12 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 	"webhooks/pkg/mercadopago"
 
+	"github.com/audita-bids/private-kit/kafka"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/mercadopago/sdk-go/pkg/webhook"
-	"github.com/newdesksoftwares/private-kit/kafka"
 	"github.com/redis/go-redis/v9"
 	kaf "github.com/segmentio/kafka-go"
 )
@@ -134,6 +135,13 @@ type cacheMiddleware struct {
 }
 
 func (mw *cacheMiddleware) HandleMercadoPagoWebhook(ctx context.Context, request *mercadopago.WebhookMessage) (*mercadopago.Event, error) {
+	_, err := mw.redis.SetNX(ctx, request.RequestId+"_"+request.Action, 1, 5*time.Minute).Result()
+
+	if err != nil {
+		level.Error(mw.logger).Log("during", "mp > handle_mp_webhook", "idempotency supressor key", "activated")
+		return nil, nil
+	}
+
 	return mw.next.HandleMercadoPagoWebhook(ctx, request)
 }
 

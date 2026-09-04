@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/newdesksoftwares/private-kit/pkg/pb/protocols/webhooks"
+	"github.com/audita-bids/private-kit/pkg/pb/protocols/webhooks"
 )
 
 const Provider = "mercadopago"
@@ -148,6 +148,17 @@ type AuthorizedPayment struct {
 		Status       string `json:"status"`
 		StatusDetail string `json:"status_detail"`
 	} `json:"payment"`
+}
+
+type Chargeback struct {
+	ID          string    `json:"id"`
+	Payments    []int64   `json:"payments"`
+	Amount      float64   `json:"amount"`
+	Currency    string    `json:"currency"`
+	Coverage    string    `json:"coverage_applied"`
+	DocStatus   string    `json:"documentation_status"`
+	DateCreated time.Time `json:"date_created"`
+	LastUpdated time.Time `json:"last_updated"`
 }
 
 type APIError struct {

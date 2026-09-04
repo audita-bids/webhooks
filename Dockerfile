@@ -4,7 +4,7 @@ RUN apk add -U --no-cache ca-certificates git
 
 ENV CGO_ENABLED=0 \
     GOOS=linux \
-    GOPRIVATE=github.com/newdesksoftwares/*
+    GOPRIVATE=github.com/audita-bids/*
 
 WORKDIR /go/src/github.com/audita-bids/webhooks
 

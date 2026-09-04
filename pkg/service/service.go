@@ -5,8 +5,8 @@ import (
 	"os"
 	"webhooks/pkg/mercadopago"
 
+	"github.com/audita-bids/private-kit/pkg/pb/protocols/client"
 	"github.com/go-kit/log"
-	"github.com/newdesksoftwares/private-kit/pkg/pb/protocols/client"
 	"github.com/redis/go-redis/v9"
 )
 

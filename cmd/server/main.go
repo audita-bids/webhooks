@@ -5,15 +5,18 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync/atomic"
+	"syscall"
+	"time"
 	"webhooks/options"
 
 	"webhooks/pkg/endpoint"
 	"webhooks/pkg/service"
 	"webhooks/transports"
 
+	"github.com/audita-bids/private-kit/middlewares"
+	"github.com/audita-bids/private-kit/pkg/lib"
 	"github.com/go-kit/kit/log/level"
-	"github.com/newdesksoftwares/private-kit/middlewares"
-	"github.com/newdesksoftwares/private-kit/pkg/lib"
 	"github.com/oklog/run"
 )
 
@@ -42,6 +45,8 @@ func main() {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	ready := new(atomic.Bool)
+
 	var g run.Group
 	{
 		promListener, err := net.Listen("tcp", cfg.PromAddr)
@@ -50,6 +55,7 @@ func main() {
 			EnableEndpoint: true,
 			EnableHTTP:     true,
 			ServiceName:    "webhooks",
+			Ready:          ready,
 		}
 
 		srv := middlewares.NewMetricsServer(config, cfg.PromAddr)
@@ -75,23 +81,33 @@ func main() {
 			os.Exit(1)
 		}
 
+		strip := http.StripPrefix("/api", httpHandler)
+
+		httpServer = &http.Server{
+			Handler:           strip,
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      120 * time.Second,
+			IdleTimeout:       120 * time.Second,
+		}
+
 		g.Add(func() error {
-			strip := http.StripPrefix("/api", httpHandler)
-
-			level.Info(logger).Log(
-				"msg", "http server started",
-				"addr", cfg.HttpAddr,
-			)
-
-			httpServer = &http.Server{
-				Handler: strip,
-			}
-
 			return httpServer.Serve(httpListener)
 		}, func(error) {
-			level.Error(logger).Log("msg", "failed to listen on http address", "err", err)
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+
+			if err := httpServer.Shutdown(ctx); err != nil {
+				level.Error(logger).Log("msg", "failed to shutdown http server", "err", err)
+			}
 		})
 	}
+
+	{
+		g.Add(run.SignalHandler(ctx, syscall.SIGINT, syscall.SIGTERM))
+	}
+
+	ready.Store(true)
 
 	if err := g.Run(); err != nil {
 		level.Error(logger).Log("msg", "servers failed", "err", err)

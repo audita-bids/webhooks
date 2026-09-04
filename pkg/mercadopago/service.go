@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-kit/kit/log/level"
@@ -32,7 +33,7 @@ type Service interface {
 	GetPayment(ctx context.Context, id string) (*Payment, error)
 	GetPreapproval(ctx context.Context, id string) (*Preapproval, error)
 	GetAuthorizedPayment(ctx context.Context, id string) (*AuthorizedPayment, error)
-	GetChargeback(ctx context.Context, id string) (json.RawMessage, error)
+	GetChargeback(ctx context.Context, id string) (*Chargeback, error)
 	GetMerchantOrder(ctx context.Context, id string) (json.RawMessage, error)
 
 	Close() error
@@ -116,7 +117,7 @@ func (s *service) HandleWebhook(ctx context.Context, webhook *WebhookMessage) (*
 			return nil, err
 		}
 
-		return webhook.Event("", "", c), nil
+		return webhook.Event(c.DocStatus, s.handleChargebackReference(ctx, c), c), nil
 
 	default:
 		level.Info(s.logger).Log(
@@ -128,6 +129,22 @@ func (s *service) HandleWebhook(ctx context.Context, webhook *WebhookMessage) (*
 
 		return nil, nil
 	}
+}
+
+// handleChargebackReference the chargeback carries payment ids, not our own. Resolving it here keeps every topic pointing at the same reference.
+func (s *service) handleChargebackReference(ctx context.Context, c *Chargeback) string {
+	if len(c.Payments) == 0 {
+		return ""
+	}
+
+	p, err := s.GetPayment(ctx, strconv.FormatInt(c.Payments[0], 10))
+
+	if err != nil {
+		level.Error(s.logger).Log("provider", Provider, "during", "handle_chargeback_reference", "error", err)
+		return ""
+	}
+
+	return p.ExternalReference
 }
 
 func (s *service) GetPayment(ctx context.Context, id string) (*Payment, error) {
@@ -142,8 +159,8 @@ func (s *service) GetAuthorizedPayment(ctx context.Context, id string) (*Authori
 	return get[AuthorizedPayment](ctx, s, fmt.Sprintf(pathAuthorizedPayment, id))
 }
 
-func (s *service) GetChargeback(ctx context.Context, id string) (json.RawMessage, error) {
-	return getRaw(ctx, s, fmt.Sprintf(pathChargeback, id))
+func (s *service) GetChargeback(ctx context.Context, id string) (*Chargeback, error) {
+	return get[Chargeback](ctx, s, fmt.Sprintf(pathChargeback, id))
 }
 
 func (s *service) GetMerchantOrder(ctx context.Context, id string) (json.RawMessage, error) {

@@ -5,9 +5,9 @@ import (
 	"webhooks/pkg/mercadopago"
 	"webhooks/pkg/service"
 
+	"github.com/audita-bids/private-kit/middlewares"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log"
-	"github.com/newdesksoftwares/private-kit/middlewares"
 )
 
 type EndpointSetup struct {

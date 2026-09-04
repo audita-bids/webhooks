@@ -1,13 +1,13 @@
 module webhooks
 
-go 1.25.0
+go 1.26
 
 require (
+	github.com/audita-bids/private-kit v1.0.53
 	github.com/go-kit/kit v0.13.0
 	github.com/go-kit/log v0.2.1
 	github.com/gorilla/mux v1.8.1
 	github.com/mercadopago/sdk-go v1.12.1
-	github.com/newdesksoftwares/private-kit v1.0.18
 	github.com/oklog/run v1.2.0
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/segmentio/kafka-go v0.4.51

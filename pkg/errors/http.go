@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/newdesksoftwares/private-kit/decode"
+	"github.com/audita-bids/private-kit/decode"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
